@@ -6,8 +6,6 @@ import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
 import android.view.View
 
-import kotlinx.android.synthetic.main.activity_register.*
-
 class registerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,10 +14,11 @@ class registerActivity : AppCompatActivity() {
 
     }
 
-        fun backEvent (view: View){
-            val intent = Intent(this@registerActivity,MainActivity::class.java);
-            startActivity(intent);
-        }
+    fun registerAccount (view: View){
+        Snackbar.make(view, "Thank you for registering", Snackbar.LENGTH_SHORT)
+        val intent = Intent(this@registerActivity,MainActivity::class.java)
+        startActivity(intent)
+    }
 
 
 
