@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">loginActivity</string>
+    <string name="title_activity_register">registerActivity</string>
+</resources>
