@@ -1,5 +1,6 @@
 package com.example.rohit.loginactivity
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.AsyncTask
@@ -10,11 +11,9 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
+import okhttp3.*
 import org.json.JSONObject
+import java.lang.ref.WeakReference
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,30 +21,91 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
             setContentView(R.layout.activity_main)
-            val checkForLogin = CheckForLogin()
+            val checkForLogin = CheckForLogin(WeakReference<Context>(applicationContext), WeakReference<Activity>(this))
             checkForLogin.execute()
     }
 
 
+    companion object {
+        class CheckForLogin(private val weakContext: WeakReference<Context> ,private val weakActivity: WeakReference<Activity>) : AsyncTask<Unit, Unit, Unit>() {
 
-    inner class CheckForLogin : AsyncTask<Unit, Unit, Unit>() {
-        override fun doInBackground(vararg params: Unit?) {
-            var sharedPref = applicationContext.getSharedPreferences(clientPreferenceFileKey, Context.MODE_PRIVATE)
-            if (sharedPref.getBoolean("logged_in", false)) {
-                var intent = Intent(this@MainActivity, HomeActivity::class.java)
-                intent.putExtra("response", "Welcome back, " + sharedPref.getString("name", "Something's wrong"))
-                startActivity(intent)
+            override fun doInBackground(vararg params: Unit?) {
+                for(i in 1..1000000000){}
+                val activity = weakActivity.get()
+                val context = weakContext.get()
+                if (getBoolean(context!!,"logged_in")) {       //Using getBoolean from Utils
+                    val intent = Intent(context, HomeActivity::class.java)
+                    intent.putExtra("response", "Welcome back, " + getString(context,"name", "Something's wrong"))
+                    activity!!.startActivity(intent)
+                    Log.i("info","SUCCESSFUL")
+                }
+            }
+
+            override fun onPostExecute(result: Unit?) {
+                weakActivity.get()!!.progress.visibility = View.GONE
+            }
+        }
+        class LoginTask(private val weakContext: WeakReference<Context> ,private val weakActivity: WeakReference<Activity>) : AsyncTask<String, Unit, Unit>() {
+            var success = true
+            override fun doInBackground(vararg params: String?) {
+                if(!isNetworkAvailable(weakActivity.get()!!)){
+                    success = false
+                    return
+                }
+                var json = JSONObject()
+                json.put("username", weakActivity.get()!!.username.editText!!.text)
+                json.put("password", weakActivity.get()!!.password.editText!!.text)
+                var jsonString = json.toString()
+                var body = RequestBody.create(JSON, jsonString)
+                var client = OkHttpClient()
+                val url = HttpUrl.Builder()
+                        .scheme(scheme)
+                        .host(baseUrl)
+                        .addEncodedPathSegments(loginClientUrl)
+                        .build()
+                var request = Request.Builder().url(url).post(body).build()
+                var response: Response? = null
+                try {
+                    response = client.newCall(request).execute()
+                }catch (exc: Exception){
+                    Log.i("error", exc.message)
+                }
+                if(response != null) {
+                    val jsonObj = response.body()
+                    var jsonData = jsonObj?.string()
+                    if (response.code() == 200) {
+                        saveClientPreferences(weakContext,jsonData!!)
+                        var intent = Intent(weakActivity.get()!!, HomeActivity::class.java)
+                        weakActivity.get()!!.startActivity(intent)
+                    } else {
+                        Log.i("info", jsonData)
+                    }
+                }else{
+                    Log.i("info", "The response was null")
+                }
+            }
+
+            override fun onPostExecute(result: Unit?) {
+                Toast.makeText(weakContext.get(), "Network error", Toast.LENGTH_LONG)
             }
         }
 
-//        override fun onPreExecute() {
-//            progress.visibility = View.VISIBLE
-//        }
-
-        override fun onPostExecute(result: Unit?) {
-            progress.visibility = View.GONE
+        fun saveClientPreferences(weakContext: WeakReference<Context>, response: String) {
+            val responseObj = JSONObject(response)
+            val clientObj = responseObj.getJSONObject("client")
+            var sharedPref = weakContext.get()!!.getSharedPreferences(clientPreferenceFileKey, Context.MODE_PRIVATE)
+            var editor = sharedPref.edit()
+            val keys = clientObj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next() as String
+                editor.putString(key, clientObj.getString(key))
+                Log.i("info", key + " : " + clientObj.getString(key))
+            }
+            editor.putBoolean("logged_in", true)
+            editor.apply()
         }
     }
+
 
     fun registerIntent(view: View) {
         Snackbar.make(view, "Let's Register", Snackbar.LENGTH_SHORT)
@@ -54,65 +114,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun login(view: View) {
-        var loginTask = LoginTask()
-        loginTask.execute()
-    }
-
-    inner class LoginTask : AsyncTask<String, Unit, Unit>() {
-        var success = false
-        override fun doInBackground(vararg params: String?) {
-            var json = JSONObject()
-            json.put("username", username.editText!!.text)
-            json.put("password", password.editText!!.text)
-            var jsonString = json.toString()
-            var body = RequestBody.create(JSON, jsonString)
-            var client = OkHttpClient()
-            var request = Request.Builder().url(baseUrl + loginClientUrl).post(body).build()
-            var response: Response? = null
-            try {
-                response = client.newCall(request).execute()
-            }catch (exc: Exception){
-                Log.i("error", exc.message)
-            }
-            if(response != null) {
-                val jsonObj = response.body()
-                var jsonData = jsonObj?.string()
-                if (response.code() == 200) {
-                    success = true
-                    saveClientPreferences(jsonData!!)
-                    var intent = Intent(this@MainActivity, HomeActivity::class.java)
-                    val infoObj = JSONObject(jsonData)
-                    intent.putExtra("response", "Welcome, ${infoObj.getJSONObject("client").getString("name")}")
-                    startActivity(intent)
-                } else {
-                    Log.i("info", jsonData)
-                }
-            }else{
-                Log.i("info", "The response was null")
-            }
-        }
-
-        override fun onPostExecute(result: Unit?) {
-            if(!success){
-                Toast.makeText(applicationContext, "Network Error", Toast.LENGTH_LONG).show()
-            }
+        if(true){
+            val loginTask = LoginTask(WeakReference<Context>(applicationContext), WeakReference<Activity>(this))
+            loginTask.execute()
+        }else{
+            Toast.makeText(applicationContext, "Network Error", Toast.LENGTH_LONG).show()
         }
     }
 
-    fun saveClientPreferences(response: String) {
-        val responseObj = JSONObject(response)
-        val clientObj = responseObj.getJSONObject("client")
-        var sharedPref = applicationContext.getSharedPreferences(clientPreferenceFileKey, Context.MODE_PRIVATE)
-        var editor = sharedPref.edit()
-        val keys = clientObj.keys()
-        while (keys.hasNext()) {
-            val key = keys.next() as String
-            editor.putString(key, clientObj.getString(key))
-            Log.i("info", key + " : " + clientObj.getString(key))
-        }
-        editor.putBoolean("logged_in", true)
-        editor.commit()
-    }
+
 
 }
 

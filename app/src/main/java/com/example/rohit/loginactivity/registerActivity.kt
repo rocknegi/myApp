@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_register.*
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -35,7 +36,12 @@ class registerActivity : AppCompatActivity() {
             clientDetails.put("password", password.editText!!.text)
             val body = RequestBody.create(JSON, clientDetails.toString())
             var client = OkHttpClient()
-            var request = Request.Builder().url(baseUrl + registerClientUrl).post(body).build()
+            val url = HttpUrl.Builder()
+                    .scheme(scheme)
+                    .host(baseUrl)
+                    .addEncodedPathSegments(registerClientUrl)
+                    .build()
+            var request = Request.Builder().url(url).post(body).build()
             var response = client.newCall(request).execute()
             if(response.code() == 201){
                 Log.i("info",response.body()?.string())

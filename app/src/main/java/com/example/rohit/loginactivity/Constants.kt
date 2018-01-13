@@ -3,18 +3,25 @@ package com.example.rohit.loginactivity
 import okhttp3.MediaType
 
 
+
+val scheme = "http"
 //Use ngrok to tunnel the registration api server and update this string
-val baseUrl = "http://774659f1.ngrok.io"
+val baseUrl = "ddcd2754.ngrok.io"
 
 
 
-val loginClientUrl = "/api/client/login"
-val registerClientUrl = "/api/client"
+val loginClientUrl = "api/client/login"
+val registerClientUrl = "api/client"
+val adminIdUrl = "api/admin/id"
+val linkAdminUrl = "api/client/idcode"
 
 
 val JSON = MediaType.parse("application/json; charset=utf-8")
 
 val clientPreferenceFileKey = "1234asd"
+
+
+val googleUrl = "http://www.google.com"
 
 //fun isNetworkAvailable(): Boolean {
 //    var connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -36,3 +43,4 @@ val clientPreferenceFileKey = "1234asd"
 //    }
 //    return false
 //}
+
